@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cyber Speed 80s - Jogo de Corrida Retro</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background-color: #0b0b12;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 10;
+      max-height: 100vh;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.3), 0 0 10px rgba(255, 0, 128, 0.4);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #2a2a40;
+      background: #000;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* UI Overlay */
+    .hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 16px;
+    }
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .stat-box {
+      background: rgba(10, 10, 24, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #8a8ab0;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: monospace;
+      color: #00f0ff;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    }
+    .stat-value.accent {
+      color: #ff007f;
+      text-shadow: 0 0 8px rgba(255, 0, 127, 0.6);
+    }
+    .stat-value.gold {
+      color: #ffea00;
+      text-shadow: 0 0 8px rgba(255, 234, 0, 0.6);
+    }
+
+    /* Gauge Speedometer */
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 75px; /* Deixar espaço para os botões touch no mobile */
+    }
+    .nitro-container {
+      width: 150px;
+    }
+    .nitro-bar-bg {
+      width: 100%;
+      height: 10px;
+      background: rgba(20, 20, 40, 0.8);
+      border: 1px solid #ff007f;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .nitro-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #ff007f, #ff7700, #ffea00);
+      box-shadow: 0 0 10px #ff007f;
+      transition: width 0.1s linear;
+    }
+
+    /* Start / GameOver Overlay Screen */
+    .overlay-screen {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 10, 25, 0.88);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      z-index: 10;
+      transition: opacity 0.3s;
+      padding: 20px;
+      text-align: center;
+    }
+    .overlay-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .title {
+      font-size: 36px;
+      font-weight: 900;
+      font-style: italic;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #00f0ff 0%, #ff007f 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #a0a0c0;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background: linear-gradient(135deg, #ff007f, #b000ff);
+      color: white;
+      border: none;
+      padding: 12px 36px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255, 0, 127, 0.5);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 30px rgba(255, 0, 127, 0.8);
+    }
+    .controls-hint {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      background: rgba(255,255,255,0.05);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px;
+    }
+    .key {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #00f0ff;
+    }
+
+    /* Mobile Touch Controls */
+    .mobile-controls {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 16px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .steer-controls, .action-controls {
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .touch-btn {
+      background: rgba(0, 240, 255, 0.2);
+      border: 2px solid rgba(0, 240, 255, 0.6);
+      color: white;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      cursor: pointer;
+    }
+    .touch-btn:active, .touch-btn.pressed {
+      background: rgba(0, 240, 255, 0.6);
+      transform: scale(0.92);
+    }
+    .touch-nitro {
+      background: rgba(255, 0, 127, 0.3);
+      border-color: #ff007f;
+    }
+    .touch-nitro:active, .touch-nitro.pressed {
+      background: rgba(255, 0, 127, 0.7);
+    }
+
+    .audio-toggle {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="canvas" width="800" height="500"></canvas>
+
+    <!-- HUD Overlay -->
+    <div class="hud">
+      <div class="hud-top">
+        <div class="stat-box">
+          <div class="stat-label">TEMPO</div>
+          <div class="stat-value" id="hud-time">00:00.0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">PONTOS</div>
+          <div class="stat-value gold" id="hud-score">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">ULTRAPASSAGENS</div>
+          <div class="stat-value accent" id="hud-passes">0</div>
+        </div>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="stat-box nitro-container">
+          <div class="stat-label">NITRO (ESPAÇO)</div>
+          <div class="nitro-bar-bg">
+            <div class="nitro-bar-fill" id="nitro-fill"></div>
+          </div>
+        </div>
+        <div class="stat-box" style="text-align: right;">
+          <div class="stat-label">VELOCIDADE</div>
+          <div class="stat-value" id="hud-speed">0 <span style="font-size: 14px; color:#8a8ab0">KM/H</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div class="mobile-controls" id="mobile-controls">
+      <div class="steer-controls">
+        <button class="touch-btn" id="btn-left">◀</button>
+        <button class="touch-btn" id="btn-right">▶</button>
+      </div>
+      <div class="action-controls">
+        <button class="touch-btn" id="btn-brake" style="font-size: 14px;">FRE</button>
+        <button class="touch-btn" id="btn-accel" style="font-size: 14px;">ACE</button>
+        <button class="touch-btn touch-nitro" id="btn-nitro">⚡</button>
+      </div>
+    </div>
+
+    <!-- Audio Toggle Button -->
+    <button class="audio-toggle" id="audio-btn">🔊 Som</button>
+
+    <!-- Start / End Screen -->
+    <div class="overlay-screen" id="menu-screen">
+      <div class="title">CYBER RACER 80s</div>
+      <div class="subtitle">Acelere na pista retrowave, desvie dos carros e use o Nitro!</div>
+      <button class="btn" id="start-btn">INICIAR CORRIDA</button>
+
+      <div class="controls-hint">
+        <div><span class="key">←</span> <span class="key">→</span> / <span class="key">A</span> <span class="key">D</span> : Esterçar</div>
+        <div><span class="key">↑</span> <span class="key">W</span> : Acelerar</div>
+        <div><span class="key">↓</span> <span class="key">S</span> : Frear</div>
+        <div><span class="key">ESPAÇO</span> / Botões : Nitro</div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="overlay-screen hidden" id="gameover-screen">
+      <div class="title" style="background: linear-gradient(135deg, #ff0055, #ff5500); -webkit-background-clip: text;">BATEU!</div>
+      <div class="subtitle" id="gameover-reason">Você colidiu com outro veículo!</div>
+      <div style="margin-bottom: 20px; text-align: center;">
+        <p style="font-size: 18px; color: #ffea00; font-weight: bold;">Pontuação Final: <span id="final-score">0</span></p>
+        <p style="font-size: 14px; color: #a0a0c0;">Ultrapassagens: <span id="final-passes">0</span></p>
+      </div>
+      <button class="btn" id="restart-btn">JOGAR NOVAMENTE</button>
+    </div>
+  </div>
+
+  <script>
+    // --- CANVAS & SETUP ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const width = 800;
+    const height = 500;
+
+    // --- GAME ENGINE CONSTANTS & STATE ---
+    const ROAD_WIDTH = 2000;
+    const SEGMENT_LENGTH = 200;
+    const RUMBLE_LENGTH = 3;
+    const CAMERA_DEPTH = 0.8;
+    const CAMERA_HEIGHT = 1000;
+    const DRAW_DISTANCE = 300;
+    const MAX_SPEED = 180; // Reduzido para melhor controle
+    const NITRO_MAX_SPEED = 240; // Reduzido para melhor controle
+    const ACCEL = 40; // Reduzido para aceleração mais suave
+    const BREAKING = -120;
+    const DECEL = -25;
+    const OFF_ROAD_DECEL = -120;
+    const OFF_ROAD_LIMIT = 80;
+
+    let audioEnabled = true;
+    let audioCtx = null;
+    let engineOsc = null;
+    let engineGain = null;
+
+    let state = 'MENU';
+    let position = 0;
+    let playerX = 0;
+    let speed = 0;
+    let nitro = 100;
+    let isNitroActive = false;
+    let warningBehind = false;
+    let score = 0;
+    let passes = 0;
+    let gameTime = 0;
+    let lastTime = performance.now();
+
+    const keys = { left: false, right: false, up: false, down: false, nitro: false };
+
+    let segments = [];
+    let trackLength = 0;
+    let cars = [];
+
+    // --- AUDIO SYSTEM ---
+    function initAudio() {
+      if (audioCtx) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      audioCtx = new AudioCtx();
+
+      engineOsc = audioCtx.createOscillator();
+      engineGain = audioCtx.createGain();
+      engineOsc.type = 'sawtooth';
+      engineOsc.frequency.setValueAtTime(60, audioCtx.currentTime);
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+      engineOsc.connect(filter);
+      filter.connect(engineGain);
+      engineGain.connect(audioCtx.destination);
+
+      engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      engineOsc.start();
+    }
+
+    function updateAudio() {
+      if (!audioCtx || !audioEnabled) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (state === 'PLAYING') {
+        const rpmFreq = 45 + (speed / NITRO_MAX_SPEED) * 200;
+        engineOsc.frequency.setTargetAtTime(rpmFreq, audioCtx.currentTime, 0.05);
+        const targetGain = 0.06 + (speed / NITRO_MAX_SPEED) * 0.12;
+        engineGain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.05);
+      } else {
+        engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx || !audioEnabled) return;
+      const t = audioCtx.currentTime;
+
+      if (type === 'crash') {
+        const bufferSize = audioCtx.sampleRate * 0.5;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+
+        const whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, t);
+        filter.frequency.exponentialRampToValueAtTime(80, t + 0.4);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        whiteNoise.start();
+      } else if (type === 'nitro') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(1200, t + 0.3);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(t + 0.3);
+      }
+    }
+
+    // --- TRACK GENERATION ---
+    function addSegment(curve, y) {
+      const n = segments.length;
+      segments.push({
+        index: n,
+        p1: { world: { y: lastY(), z: n * SEGMENT_LENGTH }, camera: {}, screen: {} },
+        p2: { world: { y: y, z: (n + 1) * SEGMENT_LENGTH }, camera: {}, screen: {} },
+        curve: curve,
+        color: Math.floor(n / RUMBLE_LENGTH) % 2 === 0
+          ? { grass: '#0e0b1f', road: '#1e1c2e', stripe: '#00f0ff', rumble: '#ff007f' }
+          : { grass: '#090714', road: '#171524', stripe: '#1e1c2e', rumble: '#ffffff' },
+        cars: []
+      });
+    }
+
+    function lastY() {
+      return segments.length === 0 ? 0 : segments[segments.length - 1].p2.world.y;
+    }
+
+    function addRoad(enter, hold, leave, curve, y) {
+      const startY = lastY();
+      const totalY = startY + (y * SEGMENT_LENGTH);
+      const total = enter + hold + leave;
+
+      for (let n = 0; n < enter; n++) addSegment(easeIn(0, curve, n / enter), easeInOut(startY, totalY, n / total));
+      for (let n = 0; n < hold; n++) addSegment(curve, easeInOut(startY, totalY, (enter + n) / total));
+      for (let n = 0; n < leave; n++) addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, totalY, (enter + hold + n) / total));
+    }
+
+    function easeIn(a, b, percent) { return a + (b - a) * Math.pow(percent, 2); }
+    function easeInOut(a, b, percent) { return a + (b - a) * ((-Math.cos(percent * Math.PI) / 2) + 0.5); }
+
+    function buildTrack() {
+      segments = [];
+      addRoad(50, 50, 50, 0, 0);
+      addRoad(40, 60, 40, 3, 20);
+      addRoad(50, 80, 50, -4, -30);
+      addRoad(40, 40, 40, 0, 0);
+      addRoad(60, 90, 60, 5, 40);
+      addRoad(50, 50, 50, -5, -20);
+      addRoad(80, 100, 80, 2, 0);
+      addRoad(40, 60, 40, -3, 30);
+      addRoad(100, 100, 100, 0, 0);
+
+      trackLength = segments.length * SEGMENT_LENGTH;
+
+      cars = [];
+      const carColors = ['#ff0055', '#00ff88', '#ffea00', '#ab00ff', '#00bfff'];
+      for (let i = 0; i < 35; i++) {
+        const offset = Math.random() * 1.4 - 0.7;
+        const z = Math.floor(Math.random() * (segments.length - 100) + 50) * SEGMENT_LENGTH;
+        const speed = 40 + Math.random() * 50;
+        cars.push({
+          offset: offset,
+          z: z,
+          speed: speed,
+          color: carColors[i % carColors.length],
+          passed: false
+        });
+      }
+    }
+
+    // --- PROJECTION MATH ---
+    function project(p, cameraX, cameraY, cameraZ, cameraDepth, width, height, roadWidth) {
+      p.camera.x = (p.world.x || 0) - cameraX;
+      p.camera.y = (p.world.y || 0) - cameraY;
+      p.camera.z = (p.world.z || 0) - cameraZ;
+
+      const scale = cameraDepth / p.camera.z;
+      p.screen.x = Math.round((width / 2) + (scale * p.camera.x * width / 2));
+      p.screen.y = Math.round((height / 2) - (scale * p.camera.y * height / 2));
+      p.screen.w = Math.round(scale * roadWidth * width / 2);
+    }
+
+    function findSegment(z) {
+      return segments[Math.floor(z / SEGMENT_LENGTH) % segments.length];
+    }
+
+    // --- RENDERING ---
+    function drawPolygon(x1, y1, x2, y2, x3, y3, x4, y4, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.lineTo(x4, y4);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawSegment(x1, y1, w1, x2, y2, w2, color) {
+      const l1 = w1 * 1.3;
+      const l2 = w2 * 1.3;
+
+      ctx.fillStyle = color.grass;
+      ctx.fillRect(0, y2, width, y1 - y2);
+
+      drawPolygon(x1 - l1, y1, x1 - w1, y1, x2 - w2, y2, x2 - l2, y2, color.rumble);
+      drawPolygon(x1 + w1, y1, x1 + l1, y1, x2 + l2, y2, x2 + w2, y2, color.rumble);
+
+      drawPolygon(x1 - w1, y1, x1 + w1, y1, x2 + w2, y2, x2 - w2, y2, color.road);
+
+      if (color.stripe) {
+        const sw1 = w1 / 30;
+        const sw2 = w2 / 30;
+        drawPolygon(x1 - sw1, y1, x1 + sw1, y1, x2 + sw2, y2, x2 - sw2, y2, color.stripe);
+      }
+    }
+
+    function drawBackground(playerSegmentCurve, playerX) {
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, height * 0.5);
+      skyGradient.addColorStop(0, '#05021a');
+      skyGradient.addColorStop(0.6, '#28004d');
+      skyGradient.addColorStop(1, '#ff007f');
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(0, 0, width, height * 0.5);
+
+      const sunY = height * 0.32;
+      const sunRadius = 60;
+      const sunGradient = ctx.createRadialGradient(width / 2, sunY, 10, width / 2, sunY, sunRadius);
+      sunGradient.addColorStop(0, '#ffff80');
+      sunGradient.addColorStop(0.5, '#ff007f');
+      sunGradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = sunGradient;
+      ctx.beginPath();
+      ctx.arc(width / 2, sunY, sunRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+      ctx.lineWidth = 1;
+      const horizonY = height * 0.5;
+      for (let i = -10; i <= 10; i++) {
+        ctx.beginPath();
+        ctx.moveTo(width / 2 + i * 80, horizonY);
+        ctx.lineTo(width / 2 + i * 200, 0);
+        ctx.stroke();
+      }
+    }
+
+    function drawRearViewMirror() {
+      const mw = 180;
+      const mh = 50;
+      const mx = (width - mw) / 2;
+      const my = 12;
+
+      ctx.save();
+
+      ctx.fillStyle = 'rgba(10, 10, 25, 0.88)';
+      ctx.strokeStyle = warningBehind ? '#ff0055' : 'rgba(0, 240, 255, 0.6)';
+      ctx.lineWidth = warningBehind ? 3 : 2;
+      ctx.beginPath();
+      ctx.roundRect(mx, my, mw, mh, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.roundRect(mx + 2, my + 2, mw - 4, mh - 4, 6);
+      ctx.clip();
+
+      const mGradient = ctx.createLinearGradient(0, my, 0, my + mh);
+      mGradient.addColorStop(0, '#15002a');
+      mGradient.addColorStop(0.5, '#0a0a14');
+      mGradient.addColorStop(1, '#1a102a');
+      ctx.fillStyle = mGradient;
+      ctx.fillRect(mx, my, mw, mh);
+
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
+      ctx.lineWidth = 1;
+      const cx = mx + mw / 2;
+      const cy = my + 8;
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, cy);
+      ctx.lineTo(cx - 50, my + mh);
+      ctx.moveTo(cx + 10, cy);
+      ctx.lineTo(cx + 50, my + mh);
+      ctx.stroke();
+
+      ctx.fillStyle = warningBehind ? '#ff0055' : '#8a8ab0';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(warningBehind ? '⚠️ CARRO ATRÁS!' : 'RETROVISOR', cx, my + 13);
+
+      const playerCamZ = position + CAMERA_HEIGHT;
+      cars.forEach(car => {
+        if (car.z < playerCamZ && (playerCamZ - car.z) < 1400) {
+          const distBack = playerCamZ - car.z;
+          const scale = 1 - (distBack / 1400);
+          const carMx = cx + (car.offset - playerX) * 35 * scale;
+          const carMy = my + mh - (scale * (mh - 16));
+          const cw = Math.max(4, 20 * scale);
+          const ch = Math.max(2, 10 * scale);
+
+          ctx.fillStyle = car.color;
+          ctx.fillRect(carMx - cw / 2, carMy - ch / 2, cw, ch);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(carMx - cw * 0.4, carMy - ch * 0.2, Math.max(1, cw * 0.25), Math.max(1, ch * 0.4));
+          ctx.fillRect(carMx + cw * 0.15, carMy - ch * 0.2, Math.max(1, cw * 0.25), Math.max(1, ch * 0.4));
+        }
+      });
+
+      ctx.restore();
+    }
+
+    function drawCar(x, y, scale, color, isPlayer = false) {
+      const w = 140 * scale;
+      const h = 70 * scale;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(-w * 0.45, h * 0.1, w * 0.9, h * 0.3);
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h * 0.6, 6 * scale);
+      ctx.fill();
+
+      ctx.fillStyle = '#0a0a14';
+      ctx.beginPath();
+      ctx.roundRect(-w * 0.35, -h * 0.8, w * 0.7, h * 0.4, 4 * scale);
+      ctx.fill();
+
+      ctx.fillStyle = isPlayer ? (keys.down ? '#ffffff' : '#ff0055') : '#ff3300';
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur = 10 * scale;
+      ctx.fillRect(-w * 0.42, -h * 0.2, w * 0.25, h * 0.25);
+      ctx.fillRect(w * 0.17, -h * 0.2, w * 0.25, h * 0.25);
+      ctx.shadowBlur = 0;
+
+      if (isPlayer && isNitroActive) {
+        ctx.fillStyle = '#00f0ff';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(-w * 0.25, h * 0.1, (8 + Math.random() * 8) * scale, 0, Math.PI * 2);
+        ctx.arc(w * 0.25, h * 0.1, (8 + Math.random() * 8) * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
+    }
+
+    // --- MAIN GAME LOOP ---
+    function update(dt) {
+      if (state !== 'PLAYING') return;
+
+      gameTime += dt;
+      const playerSegment = findSegment(position + CAMERA_HEIGHT);
+      const speedPercent = speed / NITRO_MAX_SPEED;
+
+      isNitroActive = keys.nitro && nitro > 0 && speed > 40;
+
+      if (isNitroActive) {
+        nitro = Math.max(0, nitro - dt * 25);
+        speed += ACCEL * 1.8 * dt;
+        if (Math.random() < 0.3) playSound('nitro');
+      } else {
+        nitro = Math.min(100, nitro + dt * 5);
+        if (keys.up) speed += ACCEL * dt;
+        else if (keys.down) speed += BREAKING * dt;
+        else speed += DECEL * dt;
+      }
+
+      const currentMaxSpeed = isNitroActive ? NITRO_MAX_SPEED : MAX_SPEED;
+      speed = Math.max(0, Math.min(speed, currentMaxSpeed));
+
+      if ((playerX < -1 || playerX > 1) && speed > OFF_ROAD_LIMIT) {
+        speed += OFF_ROAD_DECEL * dt;
+      }
+
+      const dx = dt * 1.5 * (0.3 + 0.7 * speedPercent);
+      if (keys.left) playerX -= dx;
+      if (keys.right) playerX += dx;
+
+      playerX -= dx * speedPercent * playerSegment.curve * 0.05;
+      playerX = Math.max(-2, Math.min(2, playerX));
+
+      position = (position + speed * dt * 100) % trackLength;
+
+      score += Math.floor((speed * dt) * (isNitroActive ? 3 : 1));
+
+      const playerCamZ = position + CAMERA_HEIGHT;
+      warningBehind = false;
+
+      cars.forEach(car => {
+        car.z = (car.z + car.speed * dt * 80) % trackLength;
+        const distZ = car.z - playerCamZ;
+
+        if (!car.passed && position > car.z && (position - car.z) < 500) {
+          car.passed = true;
+          passes++;
+          score += 250;
+        } else if (car.z > position + 1000) {
+          car.passed = false;
+        }
+
+        if (car.z < playerCamZ && (playerCamZ - car.z) < 600 && Math.abs(playerX - car.offset) < 0.6) {
+          warningBehind = true;
+          if (car.speed > speed) {
+            car.speed = Math.max(20, speed - 10);
+          }
+        }
+
+        const carSegment = findSegment(car.z);
+        const playerSegIndex = playerSegment.index;
+
+        if (Math.abs(carSegment.index - playerSegIndex) <= 1 && distZ >= -50) {
+          if (Math.abs(playerX - car.offset) < 0.45) {
+            playSound('crash');
+            triggerGameOver('Você colidiu na traseira ou lateral de outro veículo!');
+          }
+        }
+      });
+
+      document.getElementById('hud-time').innerText = formatTime(gameTime);
+      document.getElementById('hud-score').innerText = Math.floor(score);
+      document.getElementById('hud-passes').innerText = passes;
+      document.getElementById('hud-speed').innerText = Math.floor(speed);
+      document.getElementById('nitro-fill').style.width = `${nitro}%`;
+
+      updateAudio();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+
+      const baseSegment = findSegment(position);
+      const basePercent = (position % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+      const playerSegment = findSegment(position + CAMERA_HEIGHT);
+      const playerY = easeInOut(baseSegment.p1.world.y, baseSegment.p2.world.y, basePercent);
+
+      let dx = -(baseSegment.curve * basePercent);
+      let x = 0;
+
+      drawBackground(baseSegment.curve, playerX);
+
+      for (let n = 0; n < DRAW_DISTANCE; n++) {
+        const segment = segments[(baseSegment.index + n) % segments.length];
+        const looped = segment.index < baseSegment.index;
+
+        project(segment.p1, playerX * ROAD_WIDTH - x, playerY + CAMERA_HEIGHT, position - (looped ? trackLength : 0), CAMERA_DEPTH, width, height, ROAD_WIDTH);
+        project(segment.p2, playerX * ROAD_WIDTH - x - dx, playerY + CAMERA_HEIGHT, position - (looped ? trackLength : 0), CAMERA_DEPTH, width, height, ROAD_WIDTH);
+
+        x += dx;
+        dx += segment.curve;
+
+        if (segment.p1.camera.z <= CAMERA_DEPTH || segment.p2.screen.y >= segment.p1.screen.y) continue;
+
+        drawSegment(
+          segment.p1.screen.x, segment.p1.screen.y, segment.p1.screen.w,
+          segment.p2.screen.x, segment.p2.screen.y, segment.p2.screen.w,
+          segment.color
+        );
+      }
+
+      cars.forEach(car => {
+        const carSegment = findSegment(car.z);
+        if (carSegment.index >= baseSegment.index && carSegment.index < baseSegment.index + DRAW_DISTANCE) {
+          const scale = carSegment.p1.screen.w / ROAD_WIDTH;
+          const carX = carSegment.p1.screen.x + (scale * car.offset * ROAD_WIDTH);
+          const carY = carSegment.p1.screen.y;
+          if (scale > 0.02) drawCar(carX, carY, scale * 3, car.color, false);
+        }
+      });
+
+      const bounce = Math.sin(performance.now() * 0.015) * (speed / MAX_SPEED) * 2;
+      drawCar(width / 2, height - 60 + bounce, 1.2, '#00f0ff', true);
+
+      drawRearViewMirror();
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+
+      update(dt);
+      render();
+
+      requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      initAudio();
+      buildTrack();
+      position = 0;
+      playerX = 0;
+      speed = 0;
+      nitro = 100;
+      score = 0;
+      passes = 0;
+      gameTime = 0;
+      warningBehind = false;
+      state = 'PLAYING';
+
+      document.getElementById('menu-screen').classList.add('hidden');
+      document.getElementById('gameover-screen').classList.add('hidden');
+    }
+
+    function triggerGameOver(reason) {
+      state = 'GAMEOVER';
+      document.getElementById('gameover-reason').innerText = reason;
+      document.getElementById('final-score').innerText = Math.floor(score);
+      document.getElementById('final-passes').innerText = passes;
+      document.getElementById('gameover-screen').classList.remove('hidden');
+      updateAudio();
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 10);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
+    }
+
+    // --- KEYBOARD & TOUCH CONTROLS ---
+    window.addEventListener('keydown', e => {
+      initAudio();
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+      if (e.key === ' ' || e.key === 'Shift') keys.nitro = true;
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+      if (e.key === ' ' || e.key === 'Shift') keys.nitro = false;
+    });
+
+    function bindTouchButton(id, keyName) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const activate = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('pressed'); initAudio(); };
+      const deactivate = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('pressed'); };
+
+      btn.addEventListener('touchstart', activate, {passive: false});
+      btn.addEventListener('touchend', deactivate, {passive: false});
+      btn.addEventListener('touchcancel', deactivate, {passive: false});
+      btn.addEventListener('mousedown', activate);
+      btn.addEventListener('mouseup', deactivate);
+      btn.addEventListener('mouseleave', deactivate);
+    }
+
+    bindTouchButton('btn-left', 'left');
+    bindTouchButton('btn-right', 'right');
+    bindTouchButton('btn-accel', 'up');
+    bindTouchButton('btn-brake', 'down');
+    bindTouchButton('btn-nitro', 'nitro');
+
+    document.getElementById('audio-btn').addEventListener('click', () => {
+      audioEnabled = !audioEnabled;
+      document.getElementById('audio-btn').innerText = audioEnabled ? '🔊 Som' : '🔇 Som';
+      if (audioEnabled) initAudio();
+    });
+
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    buildTrack();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
